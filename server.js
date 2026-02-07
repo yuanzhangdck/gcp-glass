@@ -197,25 +197,7 @@ function formatInstance(inst, zone) {
     };
 }
 
-// Actions (Start/Stop/Delete)
-app.post('/api/instances/:action', requireGCP, async (req, res) => {
-    const { action } = req.params;
-    const { zone, name } = req.body;
-    const { instances, operations, projectId } = req.gcp;
-
-    if (!['start', 'stop', 'delete'].includes(action)) {
-        return res.status(404).json({ success: false, error: 'Unknown action' });
-    }
-
-    try {
-        const [op] = await instances[action]({ project: projectId, zone, instance: name });
-        res.json({ success: true, message: `${action} sent`, operation: op.name });
-    } catch (e) {
-        res.status(500).json({ success: false, error: e.message });
-    }
-});
-
-// Create
+// Create Instance (Must be defined BEFORE /:action)
 app.post('/api/instances/create', requireGCP, async (req, res) => {
     const { zone: zoneOrRegion, name, machineType, image, diskSize, password, enableIPv6 } = req.body;
     const { instances, projectId } = req.gcp;
@@ -229,7 +211,6 @@ app.post('/api/instances/create', requireGCP, async (req, res) => {
     if (zone === 'all') return res.status(400).json({ success: false, error: 'Invalid zone/region' });
 
     // Allow passing a region (e.g. "us-central1") instead of a zone (e.g. "us-central1-a").
-    // If region is provided, pick a UP zone in that region automatically.
     if (isRegionName(zone)) {
         try {
             zone = await pickZoneForRegion(req.gcp, zone);
@@ -240,10 +221,8 @@ app.post('/api/instances/create', requireGCP, async (req, res) => {
         return res.status(400).json({ success: false, error: `Invalid zone/region: ${zone}` });
     }
 
-    // Firewall Check (Async)
     ensureFirewallRules(req.gcp).catch(console.error);
 
-    // Image Mapping
     const imageMap = {
         'debian-11': 'projects/debian-cloud/global/images/family/debian-11',
         'debian-12': 'projects/debian-cloud/global/images/family/debian-12',
@@ -253,7 +232,6 @@ app.post('/api/instances/create', requireGCP, async (req, res) => {
     };
     const sourceImage = imageMap[image] || imageMap['debian-11'];
 
-    // Metadata (Startup Script)
     let metadata = undefined;
     if (password) {
         const script = `#! /bin/bash
@@ -267,7 +245,6 @@ systemctl restart ssh`;
         metadata = { items: [{ key: 'startup-script', value: script }] };
     }
 
-    // Network
     const region = zoneToRegion(zone);
     const networkInterface = {
         network: 'global/networks/default',
@@ -301,7 +278,7 @@ systemctl restart ssh`;
     }
 });
 
-// Change IP
+// Change IP (Before /:action)
 app.post('/api/instances/changeip', requireGCP, async (req, res) => {
     const { zone, name, ipType } = req.body;
     const { instances, operations, projectId } = req.gcp;
@@ -311,7 +288,6 @@ app.post('/api/instances/changeip', requireGCP, async (req, res) => {
         const nic = inst.networkInterfaces[0];
 
         if (ipType === 'ipv6') {
-             // Toggle Stack Type
              const [opDel] = await instances.updateNetworkInterface({
                 project: projectId, zone, instance: name, networkInterface: nic.name,
                 networkInterfaceResource: { stackType: 'IPV4_ONLY', fingerprint: nic.fingerprint }
@@ -330,7 +306,6 @@ app.post('/api/instances/changeip', requireGCP, async (req, res) => {
              });
              res.json({ success: true, operation: opAdd.name });
         } else {
-            // IPv4
             if (nic.accessConfigs && nic.accessConfigs.length > 0) {
                 const [opDel] = await instances.deleteAccessConfig({
                     project: projectId, zone, instance: name, networkInterface: nic.name, accessConfig: nic.accessConfigs[0].name
@@ -349,14 +324,27 @@ app.post('/api/instances/changeip', requireGCP, async (req, res) => {
     }
 });
 
-// Enable IPv6 (Add v6 Button)
+// Enable IPv6 (Before /:action)
 app.post('/api/instances/ipv6', requireGCP, async (req, res) => {
-    // Reusing create/change logic effectively, but simpler: just update stack type to Dual
-    // Use the Change IP logic but skip the "Disable" part if it's currently v4 only.
-    // ... Implementation can be similar to Change IP v6 step 2 ...
-    // For brevity, let's just reuse the logic or client call.
-    // ...
     res.status(501).json({error: "Implemented via Change IP logic"}); 
+});
+
+// Actions (Start/Stop/Delete) - Must be LAST
+app.post('/api/instances/:action', requireGCP, async (req, res) => {
+    const { action } = req.params;
+    const { zone, name } = req.body;
+    const { instances, operations, projectId } = req.gcp;
+
+    if (!['start', 'stop', 'delete'].includes(action)) {
+        return res.status(404).json({ success: false, error: 'Unknown action' });
+    }
+
+    try {
+        const [op] = await instances[action]({ project: projectId, zone, instance: name });
+        res.json({ success: true, message: `${action} sent`, operation: op.name });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 
