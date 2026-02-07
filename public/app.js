@@ -88,6 +88,24 @@ async function saveKey() {
     } catch(e) { showToast('Network Error', true); }
 }
 
+async function changePwd() {
+    const newPassword = document.getElementById('new-pwd').value;
+    if (!newPassword || newPassword.length < 5) return showToast('Min 5 chars', true);
+    
+    try {
+        const res = await fetch(`${API_BASE}/setup/password`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ newPassword })
+        });
+        const data = await res.json();
+        if(data.success) { 
+            showToast('Password Updated! Please re-login.'); 
+            setTimeout(()=>window.location.href='/login.html', 1500); 
+        }
+        else showToast(data.error, true);
+    } catch(e) { showToast('Network Error', true); }
+}
+
 async function loadInstances() {
     const tbody = document.getElementById('list-body');
     tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500"><div class="inline-block animate-spin mr-2">⟳</div>Loading all zones...</td></tr>`;
