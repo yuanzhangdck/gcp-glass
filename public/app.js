@@ -220,5 +220,37 @@ async function changeIp(name, zone, type) {
 }
 
 function copyText(txt) {
-    navigator.clipboard.writeText(txt).then(()=>showToast('Copied'));
+    // 优先尝试现代 API (HTTPS)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt)
+            .then(() => showToast('Copied'))
+            .catch(() => fallbackCopy(txt));
+    } else {
+        fallbackCopy(txt);
+    }
+}
+
+function fallbackCopy(txt) {
+    // 降级方案 (HTTP兼容)
+    const textArea = document.createElement("textarea");
+    textArea.value = txt;
+    
+    // 避免页面滚动
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    textArea.style.top = "0";
+    
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        const successful = document.execCommand('copy');
+        if(successful) showToast('Copied');
+        else showToast('Copy failed', true);
+    } catch (err) {
+        showToast('Copy error', true);
+    }
+    
+    document.body.removeChild(textArea);
 }
