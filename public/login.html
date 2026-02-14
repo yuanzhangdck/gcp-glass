@@ -3,30 +3,86 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GCP Access</title>
-  <link rel="icon" href="https://www.gstatic.com/devrel-devsite/prod/v2210075a8a6/google/images/favicon.png">
+  <title>GCP Glass Console</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="apple-touch-icon" href="favicon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background: #0f172a; color: white; display: grid; place-items: center; min-height: 100vh; font-family: sans-serif; }
-    .card { background: rgba(30,41,59,0.5); padding: 40px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 400px; backdrop-filter: blur(10px); }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at top left, #0f172a, #1e293b);
+      background-image:
+        radial-gradient(at 0% 0%, hsla(217,91%,60%,0.15) 0, transparent 50%),
+        radial-gradient(at 50% 0%, hsla(220,20%,15%,1) 0, transparent 50%),
+        radial-gradient(at 100% 0%, hsla(217,91%,60%,0.1) 0, transparent 50%);
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+    }
+    .card {
+      background: rgba(30,41,59,0.5);
+      padding: 40px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      width: 100%;
+      max-width: 400px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .glass-input {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: white;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .glass-input:focus { outline: none; border-color: #4285f4; }
+    .glass-input::placeholder { color: #475569; }
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(90deg, #4285f4, #3b82f6);
+      color: white;
+      font-weight: 600;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(66,133,244,0.3);
+      font-family: inherit;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(66,133,244,0.4); }
+    .btn-primary:active { transform: scale(0.98); }
+    .shake { animation: shake 0.4s ease; }
+    @keyframes shake { 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="text-center mb-6">
-        <h1 class="text-2xl font-bold text-blue-400">GCP Console</h1>
-        <p class="text-slate-400 text-sm mt-2">Enter Access Password</p>
+    <div class="text-center mb-8">
+      <img src="logo.svg" alt="GCP Glass" class="w-16 h-16 mx-auto mb-4 drop-shadow-lg">
+      <h1 class="text-2xl font-bold text-blue-400">GCP Glass</h1>
+      <p class="text-slate-400 text-sm mt-2">Enter Access Password</p>
     </div>
-    <input type="password" id="pwd" class="w-full bg-black/30 border border-white/10 rounded p-3 text-white mb-4" placeholder="Password">
-    <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold p-3 rounded transition">Login</button>
+    <input type="password" id="pwd" class="glass-input mb-4" placeholder="Password" autofocus onkeydown="if(event.key==='Enter')login()">
+    <button onclick="login()" class="btn-primary">Login</button>
   </div>
   <script>
     async function login() {
-        const password = document.getElementById('pwd').value;
-        const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ password }) });
-        const data = await res.json();
-        if(data.success) location.href = '/';
-        else alert('Wrong Password');
+      const inp = document.getElementById('pwd');
+      const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ password: inp.value }) });
+      const data = await res.json();
+      if (data.success) location.href = '/';
+      else { inp.value = ''; inp.classList.add('shake'); setTimeout(() => inp.classList.remove('shake'), 400); }
     }
   </script>
 </body>

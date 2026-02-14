@@ -3,21 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>GCP Glass Console</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/svg+xml" href="logo.svg">
+    <link rel="apple-touch-icon" href="favicon-192.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         :root {
-            /* GCP Theme Colors (Blue/Google) */
             --bg-grad: radial-gradient(circle at top left, #0f172a, #1e293b);
             --text-main: #f1f5f9;
             --text-sub: #94a3b8;
             --glass-bg: rgba(30, 41, 59, 0.6);
             --glass-border: rgba(255, 255, 255, 0.08);
-            --primary: #4285f4; /* Google Blue */
+            --primary: #4285f4;
             --primary-hover: #3b82f6;
             --accent-green: #34a853;
             --accent-red: #ea4335;
@@ -37,7 +39,7 @@
 
         /* 侧边栏 */
         .sidebar {
-            width: 240px;
+            width: 280px;
             background: rgba(15, 23, 42, 0.85);
             backdrop-filter: blur(20px);
             border-right: 1px solid var(--glass-border);
@@ -47,6 +49,14 @@
             position: fixed;
             height: 100vh;
             z-index: 50;
+        }
+
+        .sidebar-toggle {
+            display: none;
+            position: fixed; top: 16px; left: 16px; z-index: 60;
+            background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border);
+            color: white; width: 40px; height: 40px; border-radius: 12px;
+            font-size: 20px; cursor: pointer; backdrop-filter: blur(20px);
         }
 
         .logo {
@@ -93,7 +103,7 @@
         /* 主区域 */
         .main {
             flex: 1;
-            margin-left: 240px;
+            margin-left: 280px;
             min-height: 100vh;
         }
 
@@ -178,6 +188,7 @@
         .glass-input:focus {
             outline: none; border-color: var(--primary);
         }
+        .glass-input::placeholder { color: #475569; }
         
         select option { background: #1e293b; }
 
@@ -200,9 +211,20 @@
         .toggle-label:before { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background-color: white; border-radius: 50%; transition: transform 0.2s ease-in; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
         .toggle-checkbox:checked + .toggle-label:before { transform: translateX(16px); }
 
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-toggle { display: flex; align-items: center; justify-content: center; }
+            .main { margin-left: 0; }
+            .topbar { padding: 16px 20px; padding-left: 64px; }
+            .content { padding: 20px; }
+        }
     </style>
 </head>
 <body>
+
+<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
 
 <aside class="sidebar">
     <div class="logo">
@@ -211,8 +233,15 @@
             <span>GCP Glass</span>
         </h1>
     </div>
-    <div class="nav-item active">
-        <span>🖥️</span> <span>VM Instances</span>
+    <div class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-2">Accounts</div>
+    <div id="account-list"></div>
+    <button onclick="showAddAccount()" class="nav-item text-blue-400 hover:text-blue-300 mt-1" style="border:1px dashed rgba(255,255,255,0.1);">
+        <span>➕</span> <span>Add Account</span>
+    </button>
+    <div class="mt-auto pt-4 border-t border-white/5">
+        <div class="nav-item" onclick="toggleSettings()">
+            <span>⚙️</span> <span>Settings</span>
+        </div>
     </div>
 </aside>
 
@@ -220,8 +249,8 @@
     <header class="topbar">
         <div class="text-sm font-mono text-blue-400" id="project-id">LOADING...</div>
         <div class="flex gap-2">
-             <button onclick="toggleSettings()" class="btn btn-glass">⚙️ Settings</button>
-             <button onclick="loadInstances()" class="btn btn-glass">🔄 Refresh</button>
+             <button onclick="showLogs()" class="btn btn-glass">📋 Logs</button>
+             <button onclick="logout()" class="btn btn-glass hover:!bg-red-500/20 hover:!text-red-400">🚪 Logout</button>
         </div>
     </header>
 
@@ -277,8 +306,7 @@
                                 <option value="asia-southeast1-b">asia-southeast1-b</option>
                                 <option value="asia-southeast1-c">asia-southeast1-c</option>
                             </optgroup>
-                            <optgroup label="US (Iowa)">
-                             <optgroup label="Europe">
+                            <optgroup label="Europe">
                                 <option value="europe-west1-b">europe-west1-b (Belgium)</option>
                                 <option value="europe-west2-a">europe-west2-a (London)</option>
                                 <option value="europe-west3-a">europe-west3-a (Frankfurt)</option>
@@ -327,7 +355,10 @@
             <div class="card xl:col-span-3">
                 <div class="card-header">
                     <h3 class="font-bold text-white">Active Instances</h3>
-                    <span id="count" class="text-xs bg-white/10 px-2 py-1 rounded">0</span>
+                    <div class="flex items-center gap-3">
+                        <span id="count" class="text-xs bg-white/10 px-2 py-1 rounded">0</span>
+                        <button onclick="loadInstances(true)" class="btn btn-glass text-xs">🔄 Refresh</button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-400 border-collapse">
@@ -337,6 +368,7 @@
                                 <th class="p-4">Zone</th>
                                 <th class="p-4">Status</th>
                                 <th class="p-4">IP Address</th>
+                                <th class="p-4">Disk / Created</th>
                                 <th class="p-4 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -347,39 +379,28 @@
                 </div>
             </div>
         </div>
+
     </div>
 </main>
 
-<!-- Settings Modal (Dynamic via JS, but here for Key) -->
+<!-- Settings Modal -->
 <div id="settings-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm">
-    <div class="bg-[#1e293b] border border-white/10 rounded-xl p-6 w-full max-w-2xl shadow-2xl">
+    <div class="bg-[#1e293b] border border-white/10 rounded-xl p-6 w-full max-w-md shadow-2xl">
         <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-4">
-            <h3 class="text-lg font-bold text-white">GCP Settings</h3>
+            <h3 class="text-lg font-bold text-white">Settings</h3>
             <button onclick="toggleSettings()" class="text-slate-400 hover:text-white">&times;</button>
         </div>
-        <div class="space-y-4">
-            <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Service Account JSON</label>
-                <textarea id="gcp-key" class="glass-input h-32 font-mono text-xs" placeholder='Paste contents of your .json key file here...'></textarea>
-                <div class="flex justify-end mt-2">
-                    <button onclick="saveKey()" class="btn btn-primary text-xs">Update Key</button>
-                </div>
-            </div>
-            
-            <hr class="border-white/10 my-4">
-            
-            <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Change Password</label>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="password" id="new-pwd" class="glass-input" placeholder="New Password">
-                    <button onclick="changePwd()" class="btn btn-glass justify-center hover:bg-red-500/20 hover:text-red-400">Update Password</button>
-                </div>
+        <div>
+            <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Change Password</label>
+            <div class="grid grid-cols-2 gap-4">
+                <input type="password" id="new-pwd" class="glass-input" placeholder="New Password">
+                <button onclick="changePwd()" class="btn btn-glass justify-center hover:bg-red-500/20 hover:text-red-400">Update</button>
             </div>
         </div>
     </div>
 </div>
 
-<script src="app.js?v=gcp_init"></script>
+<script src="app.js?v=multi_account"></script>
 <script>
     function genPass() {
         const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
